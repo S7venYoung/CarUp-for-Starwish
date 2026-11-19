@@ -1,0 +1,11 @@
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -61,7 +61,7 @@
+                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+             </intent-filter>
+         </receiver>
+-        <activity android:configChanges="keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|density" android:exported="true" android:launchMode="singleTop" android:name="com.shilapi.xcertplay.DiPlayActivity" android:theme="@style/Theme.Xcertplay">
++        <activity android:configChanges="keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|density" android:exported="true" android:launchMode="singleTop" android:icon="@drawable/ic_carplay" android:roundIcon="@drawable/ic_carplay" android:name="com.shilapi.xcertplay.DiPlayActivity" android:theme="@style/Theme.Xcertplay">
+             <intent-filter>
+                 <action android:name="android.intent.action.MAIN"/>
+                 <category android:name="android.intent.category.LAUNCHER"/>

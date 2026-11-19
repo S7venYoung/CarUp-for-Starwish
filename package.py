@@ -14,7 +14,7 @@ with zipfile.ZipFile(args.base) as base, zipfile.ZipFile(args.rebuilt) as patche
     entries = [(base, e) for e in base.infolist()]
     if args.resources:
         def is_resource(name):
-            return name == 'resources.arsc' or name.startswith('res/')
+            return name in ('resources.arsc', 'AndroidManifest.xml') or name.startswith('res/')
         entries = [(src, e) for src, e in entries if not is_resource(e.filename)]
         with zipfile.ZipFile(args.resources) as resources:
             compiled = [(e, resources.read(e)) for e in resources.infolist() if is_resource(e.filename)]
