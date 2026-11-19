@@ -12,3 +12,5 @@ python3 package.py base.apk rebuilt.apk unsigned.apk
 apksigner sign --ks YOUR_KEYSTORE --out CarXY.apk unsigned.apk
 ```
 公开 APK 不含配件身份。个人版仅在本地使用，不上传配件身份或签名密钥。
+
+固定栏图标采用透明底矢量，日间深灰、夜间白色，桌面和固定栏共用。要重建图标，使用 Apktool 3.0.3 以 -s 模式解码上一版 CarXY，复制 icon/res 下的资源到解码后的 res，再用 apktool b 编译。最后在 package.py 的参数中追加 --resources 图标资源包.apk 并签名。
