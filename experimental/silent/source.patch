@@ -1,3 +1,35 @@
+diff --git a/common/src/main/AndroidManifest.xml b/common/src/main/AndroidManifest.xml
+index acceb5c..d1f23fc 100644
+--- a/common/src/main/AndroidManifest.xml
++++ b/common/src/main/AndroidManifest.xml
+@@ -94,6 +94,14 @@
+                 <category android:name="android.intent.category.LAUNCHER" />
+             </intent-filter>
+         </activity>
++        <activity-alias android:name="com.shilapi.xcertplay.StarwishDock"
++            android:targetActivity="com.shilapi.xcertplay.DiPlayActivity" android:exported="true"
++            android:label="星愿控制栏" android:icon="@drawable/ic_starwish_dock">
++            <intent-filter>
++                <action android:name="android.intent.action.MAIN" />
++                <category android:name="android.intent.category.LAUNCHER" />
++            </intent-filter>
++        </activity-alias>
+         <service android:name="com.shilapi.xcertplay.DiPlaySessionService"
+             android:exported="false" android:foregroundServiceType="connectedDevice|microphone|location|mediaPlayback" />
+ 
+diff --git a/common/src/main/java/com/shilapi/xcertplay/AirPlayPersistence.kt b/common/src/main/java/com/shilapi/xcertplay/AirPlayPersistence.kt
+index 009ce76..371167d 100644
+--- a/common/src/main/java/com/shilapi/xcertplay/AirPlayPersistence.kt
++++ b/common/src/main/java/com/shilapi/xcertplay/AirPlayPersistence.kt
+@@ -1480,7 +1480,7 @@ object AirPlayPersistence {
+ 
+     fun loadHideBottomBar(context: Context): Boolean =
+         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+-            .getBoolean(KEY_HIDE_BOTTOM_BAR, true)
++            .getBoolean(KEY_HIDE_BOTTOM_BAR, false)
+ 
+     fun saveHideBottomBar(context: Context, hide: Boolean) {
+         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
 diff --git a/common/src/main/java/com/shilapi/xcertplay/BootReceiver.kt b/common/src/main/java/com/shilapi/xcertplay/BootReceiver.kt
 index 1f4aaaa..58c396b 100644
 --- a/common/src/main/java/com/shilapi/xcertplay/BootReceiver.kt
@@ -23,6 +55,21 @@ index 1f4aaaa..58c396b 100644
              StartupDiagnosticSnapshot.launchResult(context)
          } catch (error: RuntimeException) {
              StartupDiagnosticSnapshot.launchResult(context, error)
+diff --git a/common/src/main/java/com/shilapi/xcertplay/CarPlayHostActivity.kt b/common/src/main/java/com/shilapi/xcertplay/CarPlayHostActivity.kt
+index 1c6e14a..5bbe65f 100644
+--- a/common/src/main/java/com/shilapi/xcertplay/CarPlayHostActivity.kt
++++ b/common/src/main/java/com/shilapi/xcertplay/CarPlayHostActivity.kt
+@@ -1614,7 +1614,10 @@ open class CarPlayHostActivity : ComponentActivity() {
+     }
+ 
+     // Hardware navigation belongs to the iPhone-rendered CarPlay UI, not Android View focus.
++    private val starwishKeys = StarwishTrackKeys()
++
+     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
++        if (starwishKeys.handle(event, !inCall(this))) return true
+         val physicalKey = Triple(event.deviceId, event.keyCode, event.scanCode)
+         val downOrUp = event.action == KeyEvent.ACTION_DOWN || event.action == KeyEvent.ACTION_UP
+         if (downOrUp && physicalKey in legacySiriPresses) {
 diff --git a/common/src/main/java/com/shilapi/xcertplay/DiPlaySessionService.kt b/common/src/main/java/com/shilapi/xcertplay/DiPlaySessionService.kt
 index 7a3b193..03a9947 100644
 --- a/common/src/main/java/com/shilapi/xcertplay/DiPlaySessionService.kt
@@ -152,6 +199,79 @@ index 0000000..5579aa3
 +        try { controller.start() } catch (error: RuntimeException) { stopIfOwned(); throw error }
 +    }
 +}
+diff --git a/common/src/main/java/com/shilapi/xcertplay/StarwishTrackKeys.kt b/common/src/main/java/com/shilapi/xcertplay/StarwishTrackKeys.kt
+new file mode 100644
+index 0000000..ff35cab
+--- /dev/null
++++ b/common/src/main/java/com/shilapi/xcertplay/StarwishTrackKeys.kt
+@@ -0,0 +1,25 @@
++package com.shilapi.xcertplay
++
++import android.view.KeyEvent
++import com.shilapi.xcertplay.airplay.CarPlayMediaButton
++
++internal class StarwishTrackKeys {
++    private val held = mutableSetOf<Pair<Int, Int>>()
++
++    fun handle(event: KeyEvent, enabled: Boolean): Boolean {
++        val button = when (event.keyCode) {
++            346 -> CarPlayMediaButton.PREVIOUS
++            347 -> CarPlayMediaButton.NEXT
++            else -> return false
++        }
++        val key = event.deviceId to event.keyCode
++        if (event.action == KeyEvent.ACTION_UP) return held.remove(key)
++        if (event.action != KeyEvent.ACTION_DOWN) return false
++        if (event.repeatCount > 0) return key in held
++        held.remove(key)
++        if (!enabled || !CarPlayBackgroundSession.active) return false
++        if (CarPlayBackgroundSession.snapshot()?.controller?.sendMediaButton(button) != true) return false
++        held.add(key)
++        return true
++    }
++}
+diff --git a/common/src/main/java/com/shilapi/xcertplay/WheelKeyService.kt b/common/src/main/java/com/shilapi/xcertplay/WheelKeyService.kt
+index f31305d..ba64b02 100644
+--- a/common/src/main/java/com/shilapi/xcertplay/WheelKeyService.kt
++++ b/common/src/main/java/com/shilapi/xcertplay/WheelKeyService.kt
+@@ -175,7 +175,10 @@ class WheelKeyService : AccessibilityService() {
+         }
+     }
+ 
++    private val starwishKeys = StarwishTrackKeys()
++
+     private fun handleKey(event: KeyEvent): Boolean {
++        if (starwishKeys.handle(event, !inCall(this))) return true
+         if (event.action != KeyEvent.ACTION_DOWN && event.action != KeyEvent.ACTION_UP) return false
+         val down = event.action == KeyEvent.ACTION_DOWN
+         val physicalKey = PhysicalWheelKey(event.deviceId, event.keyCode, event.scanCode)
+diff --git a/common/src/main/res/drawable/ic_starwish_dock.xml b/common/src/main/res/drawable/ic_starwish_dock.xml
+new file mode 100644
+index 0000000..e1da7bf
+--- /dev/null
++++ b/common/src/main/res/drawable/ic_starwish_dock.xml
+@@ -0,0 +1,7 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="48dp" android:height="48dp" android:viewportWidth="32" android:viewportHeight="32">
++    <path android:fillColor="@android:color/transparent" android:strokeColor="@color/carxy_dock_ink"
++        android:strokeWidth="2.4" android:strokeLineCap="round" android:strokeLineJoin="round"
++        android:pathData="M25.8,9.7A11.7,11.7 0,1 0,25.8 22.3" />
++    <path android:fillColor="@color/carxy_dock_ink" android:pathData="M13,10.8Q13,10.1 13.7,10.6L21,15.4Q21.9,16 21,16.6L13.7,21.4Q13,21.9 13,21.2Z" />
++</vector>
+diff --git a/common/src/main/res/values-night/carxy_dock.xml b/common/src/main/res/values-night/carxy_dock.xml
+new file mode 100644
+index 0000000..17ed368
+--- /dev/null
++++ b/common/src/main/res/values-night/carxy_dock.xml
+@@ -0,0 +1 @@
++<resources><color name="carxy_dock_ink">#FFFFFF</color></resources>
+diff --git a/common/src/main/res/values/carxy_dock.xml b/common/src/main/res/values/carxy_dock.xml
+new file mode 100644
+index 0000000..0b19515
+--- /dev/null
++++ b/common/src/main/res/values/carxy_dock.xml
+@@ -0,0 +1 @@
++<resources><color name="carxy_dock_ink">#30343A</color></resources>
 diff --git a/mobile/build.gradle.kts b/mobile/build.gradle.kts
 index 36b0f59..61df5ca 100644
 --- a/mobile/build.gradle.kts
