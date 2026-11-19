@@ -13,4 +13,4 @@ apksigner sign --ks YOUR_KEYSTORE --out CarXY.apk unsigned.apk
 ```
 公开 APK 不含配件身份。个人版仅在本地使用，不上传配件身份或签名密钥。
 
-固定栏图标采用透明底矢量，日间深灰、夜间白色，应用默认图标为开口圆环和播放三角，桌面入口单独指定绿色原图；控制栏实际选图由车机决定。要重建图标，使用 Apktool 3.0.3 以 -s 模式解码上一版 CarXY，复制 icon/res 下的资源到解码后的 res，在解码目录用 patch -p1 应用 icon/launcher.patch，再用 apktool b 编译。最后在 package.py 的参数中追加 --resources 图标资源包.apk 并签名。
+固定栏图标采用透明底矢量，日间深灰、夜间白色，应用和主入口使用绿色原图。固定时选择“CarXY 控制栏”别名入口，其图标为单色开口圆环和播放三角；部分桌面可能按包名合并入口。要重建图标，使用 Apktool 3.0.3 以 -s 模式解码上一版 CarXY，复制 icon/res 下的资源到解码后的 res，在解码目录用 patch -p1 应用 icon/launcher.patch，再用 apktool b 编译。最后在 package.py 的参数中追加 --resources 图标资源包.apk 并签名。
