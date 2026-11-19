@@ -1,0 +1,29 @@
+name: Starwish silent wireless experiment
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: HuangYingNing/DiPlay
+          ref: f986e350c8cf27eb9db230518d119f36d227c447
+          path: source
+      - run: git -C source apply ../experimental/silent/source.patch
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-37.0 build-tools;36.0.0 ndk;28.2.13676358
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew :mobile:assembleDebug --stacktrace
+        working-directory: source
+      - uses: actions/upload-artifact@v4
+        with:
+          name: starwish-silent-debug
+          path: source/mobile/build/outputs/apk/debug/*.apk
