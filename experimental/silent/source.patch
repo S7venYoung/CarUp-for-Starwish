@@ -106,10 +106,10 @@ index 510b97e..830f3b4 100644
                  PhoneWakeDiagnostics.record(context, "failed", error)
 diff --git a/common/src/main/java/com/shilapi/xcertplay/SilentWirelessSession.kt b/common/src/main/java/com/shilapi/xcertplay/SilentWirelessSession.kt
 new file mode 100644
-index 0000000..5579aa3
+index 0000000..60945bb
 --- /dev/null
 +++ b/common/src/main/java/com/shilapi/xcertplay/SilentWirelessSession.kt
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,105 @@
 +package com.shilapi.xcertplay
 +
 +import android.content.Context
@@ -164,7 +164,14 @@ index 0000000..5579aa3
 +        val height = 968
 +        val config = AirPlayConfig("DiPlay", id, DiPlayBluetooth.localAddress(service) ?: id,
 +            "950.7.1", AirPlayDisplayConfig(width, height, fps = 30))
-+        val sink = AndroidMediaSink(context = service.applicationContext, videoWidth = width, videoHeight = height)
++        val bluetoothOutput = com.shilapi.xcertplay.vehicle.VehicleAudioOutputMode.bluetooth(service)
++        val rendererFocus = prefs.loadAudioFocusEnabled(service)
++        val sink = AndroidMediaSink(context = service.applicationContext, videoWidth = width, videoHeight = height,
++            wirelessAudio = true, videoFps = 30, unifiedMediaOutput = true, bluetoothOutput = bluetoothOutput,
++            audioFocusEnabled = rendererFocus, audioFocusAutoYield = prefs.loadAudioFocusAutoYield(service),
++            mediaChannel = prefs.loadMediaAudioChannel(service), navigationChannel = prefs.loadNavigationAudioChannel(service),
++            audioOutputRoutes = VehicleAudioRoutes.load(service),
++            onMediaAudioChanged = CarPlayMediaKeys::onMediaAudioChanged)
 +        val owner = Any()
 +        fun stopIfOwned() {
 +            handler.post { if (CarPlayBackgroundSession.isOwner(owner)) CarPlayBackgroundSession.stop() }
@@ -183,6 +190,7 @@ index 0000000..5579aa3
 +        CarPlayBackgroundSession.store(controller, sink, width, height, owner,
 +            CarPlaySessionDisplay(width, height, 0, true, false, width, height)) { complete ->
 +            handler.removeCallbacks(timeout)
++            CarPlayMediaKeys.detach(controller)
 +            Thread {
 +                try { controller.close() } finally {
 +                    handler.post {
@@ -196,7 +204,15 @@ index 0000000..5579aa3
 +            }.start()
 +        }
 +        handler.postDelayed(timeout, 120_000)
-+        try { controller.start() } catch (error: RuntimeException) { stopIfOwned(); throw error }
++        try {
++            sink.setAudioOwnershipChangedListener(controller::setBluetoothAudioOwnership)
++            CarPlayMediaKeys.attach(service, controller,
++                manageAudioFocus = !bluetoothOutput && !rendererFocus &&
++                    com.shilapi.xcertplay.vehicle.GeelyFactoryCarPlay.load(service) == null,
++                onMediaPlaying = sink::onMediaPlaying)
++            sink.setSpeechPlaybackListener { active -> CarPlayMediaKeys.onSpeechPlayback(controller, active) }
++            controller.start()
++        } catch (error: RuntimeException) { stopIfOwned(); throw error }
 +    }
 +}
 diff --git a/common/src/main/java/com/shilapi/xcertplay/StarwishTrackKeys.kt b/common/src/main/java/com/shilapi/xcertplay/StarwishTrackKeys.kt
